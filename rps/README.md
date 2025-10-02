@@ -44,3 +44,60 @@ jac run rps-bestof.jac
 
 # Example for rps-with-llm.jac
 jac run rps-with-llm.jac
+```
+
+### Cloud / API Mode (rps-scale.jac)
+
+```bash
+jac serve rps-scale.jac
+# Walkers become API endpoints that can be accessed remotely
+```
+## Quick Start Examples
+
+#### rps-scale.jac
+```
+You chose rock, Computer chose scissors
+You win!
+You chose paper, Computer chose rock
+You win!
+You chose scissors, Computer chose paper
+You win!
+```
+#### rps-bestof.jac (Best-of-3)
+```
+Starting Rock-Paper-Scissors best-of-3 (first to 2).
+Round 1:
+You chose rock, Computer chose paper
+Computer wins the round!
+Score: You 0 - CPU 1
+Round 2:
+You chose scissors, Computer chose paper
+You win the round!
+Score: You 1 - CPU 1
+Round 3:
+You chose rock, Computer chose scissors
+You win the round!
+Score: You 2 - CPU 1
+Match over — You won!
+```
+#### rps-with-llm.jac
+```
+You chose rock, Computer chose paper
+LLM: Looks like the computer outsmarted you this time! Paper wraps rock.
+You chose scissors, Computer chose paper
+LLM: Nice move! Scissors slice through paper.
+You chose paper, Computer chose rock
+LLM: Paper covers rock — victory!
+```
+
+## Gameplay
+
+- Players choose rock, paper, or scissors.
+- The computer picks a random choice each round.
+- Outcome is determined based on classic RPS rules:
+    - Rock beats Scissors
+    - Scissors beats Paper
+    - Paper beats Rock
+- rps-bestof.jac tracks scores for multiple rounds.
+- rps-with-llm.jac provides AI commentary after each round.
+
