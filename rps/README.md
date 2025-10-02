@@ -52,6 +52,9 @@ jac run rps-with-llm.jac
 jac serve rps-scale.jac
 # Walkers become API endpoints that can be accessed remotely
 ```
+
+---
+
 ## Quick Start Examples
 
 #### rps-scale.jac
@@ -89,6 +92,7 @@ LLM: Nice move! Scissors slice through paper.
 You chose paper, Computer chose rock
 LLM: Paper covers rock — victory!
 ```
+---
 
 ## Gameplay
 
