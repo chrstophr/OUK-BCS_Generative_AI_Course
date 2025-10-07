@@ -1,0 +1,53 @@
+# -----------------------------
+# Jac MCP Chatbot Ignore Rules
+# -----------------------------
+
+# 🧠 Chroma vector store database
+chroma/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+
+# 📁 Uploaded or user-provided files
+uploads/
+data/
+tmp/
+temp/
+
+# 🧰 Python cache and virtual environment
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+venv/
+env/
+*.egg-info/
+
+# 🚀 Streamlit / FastAPI runtime
+.streamlit/
+.cache/
+logs/
+*.log
+
+# 🧑‍💻 VS Code / Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ⚙️ System files
+.DS_Store
+Thumbs.db
+
+# 🧱 Build or dist folders
+build/
+dist/
+
+# 🧩 Node modules (if you later add frontend)
+node_modules/
+
+# 📦 Packaging / dependency management
+*.lock
+*.bak
