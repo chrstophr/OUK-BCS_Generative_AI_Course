@@ -1,5 +1,6 @@
 """Rock Paper Scissors with AI Commentary"""
 
+#import from litellm { completion }
 import random;
 import from byllm.llm { Model }
 
