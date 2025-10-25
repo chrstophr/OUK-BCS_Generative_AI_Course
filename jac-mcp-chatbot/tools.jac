@@ -3,7 +3,8 @@ import requests;
 import from langchain_community.document_loaders {PyPDFDirectoryLoader, PyPDFLoader}
 import from langchain_text_splitters {RecursiveCharacterTextSplitter}
 import from langchain.schema.document {Document}
-import from langchain_openai {OpenAIEmbeddings}
+#import from langchain_openai {OpenAIEmbeddings}
+import from langchain_google_genai {GoogleGenerativeAIEmbeddings}
 import from langchain_chroma {Chroma}
 
 glob SERPER_API_KEY: str = os.getenv('SERPER_API_KEY', '');
@@ -52,7 +53,8 @@ obj RagEngine {
     }
 
     def get_embedding_function {
-        embeddings = OpenAIEmbeddings();
+#        embeddings = OpenAIEmbeddings();
+        embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001");
         return embeddings;
     }
 
