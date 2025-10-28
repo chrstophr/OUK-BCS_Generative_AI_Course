@@ -1,15 +1,15 @@
-# ===== agent_core.jac =====
-# Core nodes and routing logic for Codebase Genius
-# TODO: Add advanced routing and memory management later
+import from datetime { datetime }
 
-import from dotenv { load_dotenv }
-import sys;
+def get_current_datetime() -> str {
+    return str(datetime.now());
+}
 
 node Memory {}
 
 node Session {
     has history: list = [];
-    has created_at: str = "2025-10-23";  # TODO: use real timestamp
+    has created_at: str = get_current_datetime();
+    has current_state: dict = {};
 
     def add_history(entry: str) {
         self.history = self.history + [entry];
@@ -20,50 +20,21 @@ node Session {
     }
 }
 
-node Toolbox {
-    def route_and_run(utterance: str, history: str) -> str abs;
-    can execute with code_genius entry {
-        # TODO: Implement later
-        report {"response": "Placeholder response from Toolbox."};
-    }
-}
-
-enum RoutingNodes {
-    GENERAL_CHAT = "GeneralChat"
-}
-
-walker code_genius {
-    has utterance: str = "";
-    has session_id: str = "";
-
+walker get_all_sessions {
     obj __specs__ {
         static has auth: bool = False;
     }
-
-    def get_node_class(class_name: str) {
-        main_mod = sys.modules.get("main");  # ✅ Avoid __main__ bug
-        if main_mod and hasattr(main_mod, class_name) {
-            return getattr(main_mod, class_name, None);
-        }
-        return None;
-    }
-
-    def route_to_node(utterance: str, history: str) -> RoutingNodes abs;
-
-    can execute with `root entry {
-        memory_list = [root --> (`?Memory)];
+    can get_all_sessions with `root entry {
+        memory_list = [here --> (`?Memory)];
         if not memory_list {
-            memory_list = root ++> Memory();
+            report "No sessions found.";
+            disengage;
         }
         memory = memory_list[0];
-        session_list = memory ++> Session();
-        self.session = session_list[0];
-        print("🧠 Placeholder: Routing utterance ->", self.utterance);
-        report {"response": "Codebase Genius core booted successfully!"};
+        session_list = [memory --> (`?Session)];
+        report [ {
+            "id": jid(session),
+            "created_at": session.created_at
+        } for session in session_list];
     }
-}
-
-with entry {
-    load_dotenv();
-    print("✅ Environment loaded and Codebase Genius core initialized");
 }
