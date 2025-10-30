@@ -87,3 +87,76 @@ node Session {
     }
 }
 
+# -----------------------------
+# Supervisor walker
+# -----------------------------
+walker supervisor {
+    has utterance: str = "";
+    has session_id: str = "";
+
+    obj __specs__ {
+        static has auth: bool = False;
+    }
+
+    # helper: reflectively find a class by name in loaded modules
+    def get_agent_class(class_name: str) {
+        main_mod = sys.modules.get("__main__");
+        if main_mod and hasattr(main_mod, class_name) {
+            return getattr(main_mod, class_name, None);
+        }
+
+        for (mod_name, mod) in sys.modules.items() {
+            if mod and hasattr(mod, class_name) {
+                return getattr(mod, class_name, None);
+            }
+        }
+        return None;
+    }
+
+    # abstract: decide which agent to route to (implement in supervisor.impl)
+    def route_to_agent(utterance: str, history: str) -> AgentTypes abs;
+
+    can supervise with `root entry {
+        # ensure a Memory node exists and a Session is available
+        memory_list = [root --> (`?Memory)];
+        if not memory_list {
+            memory_list = root ++> Memory();
+        }
+        memory = memory_list[0];
+
+        if not self.session_id {
+            session_list = memory ++> Session();
+            self.session = session_list[0];
+        } else {
+            self.session = &(self.session_id);
+        }
+
+        routed_agent = self.route_to_agent(self.utterance, self.session.get_history());
+        if routed_agent == AgentTypes.NONE {
+            report {
+                "session_id": jid(self.session),
+                "response": "I'm sorry, I couldn't determine how to assist you."
+            };
+            disengage;
+        }
+
+        print("********** Routed agent:", routed_agent);
+
+        # get the walker/class for the agent and spawn it with the current session
+        agent_cls = self.get_agent_class(routed_agent.value);
+        if not agent_cls {
+            report {
+                "session_id": jid(self.session),
+                "response": "I'm sorry, I couldn't find the appropriate agent."
+            };
+            disengage;  
+        }
+
+        # spawn the agent walker with the same session id so it can access session.current_state
+        agent_inst = agent_cls();
+        agent_inst(
+            utterance = self.utterance,
+            session_id = jid(self.session)
+        ) spawn root;
+    }
+}
