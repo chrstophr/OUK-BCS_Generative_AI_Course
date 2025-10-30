@@ -207,3 +207,29 @@ walker agent {
         }
     }
 }
+
+# -----------------------------
+# Utility walker to list sessions
+# -----------------------------
+walker get_all_sessions {
+    obj __specs__ {
+        static has auth: bool = False;
+    }
+    can get_all_sessions with `root entry {
+        memory_list = [here --> (`?Memory)];
+        if not memory_list {
+            report "No sessions found.";
+            disengage;
+        }
+        memory = memory_list[0];
+        session_list = [memory --> (`?Session)];
+        report [{
+            "id": jid(session),
+            "created_at": session.created_at
+        } for session in session_list];
+    }
+}
+
+with entry {
+    load_dotenv();
+}
