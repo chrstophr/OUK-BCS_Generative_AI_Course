@@ -160,3 +160,50 @@ walker supervisor {
         ) spawn root;
     }
 }
+
+
+# -----------------------------
+# Generic agent walker (toolbox runner)
+# -----------------------------
+walker agent {
+    has utterance: str = "";
+    has session_id: str = "";
+
+    obj __specs__ {
+        static has auth: bool = False;
+    }
+
+    def get_node_class(class_name: str) {
+        main_mod = sys.modules.get("__main__");
+        if main_mod and hasattr(main_mod, class_name) {
+            return getattr(main_mod, class_name, None);
+        }
+
+        for (mod_name, mod) in sys.modules.items() {
+            if mod and hasattr(mod, class_name) {
+                return getattr(mod, class_name);
+            }
+        }
+        return None;
+    }
+
+    # abstract: choose which node (toolbox) this agent should visit
+    def route_to_node(utterance: str, history: str) -> RoutingNodes abs;
+
+    can execute with `root entry {
+        # bind to session (must exist)
+        self.session = &(self.session_id);
+
+        routed_node = self.route_to_node(self.utterance, self.session.get_history());
+        node_cls = self.get_node_class(routed_node.value);
+        if not node_cls {
+            print("Failed to get node class for:", routed_node);
+            return;
+        }
+        node_inst = node_cls();
+        visit [-->(`?node_cls)] else {
+            attached_routed_node = here ++> node_inst;
+            visit attached_routed_node;
+        }
+    }
+}
