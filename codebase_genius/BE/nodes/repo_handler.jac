@@ -2,24 +2,30 @@ import os;
 import git;
 import tempfile;
 import from utils { get_current_datetime }
+import from agent_core { Agent, AgentTypes }
+
 
 node RepoHandler(Agent) {
     has agent_type: AgentTypes = AgentTypes.REPO_HANDLER;
 
     def validate_and_clone_repo(repo_url: str) -> str {
-        temp_dir = tempfile.mkdtemp(prefix="repo_clone_");
-        try {
-            print(f"Cloning repository from {repo_url}...");
-            git.Repo.clone_from(repo_url, temp_dir);
-            print(f"Repository cloned successfully at {temp_dir}");
-            return temp_dir;
-        } catch git.GitCommandError as e {
-            print(f"Error cloning repository: {e}");
-            return "";
-        }
+       # temp_dir = tempfile.mkdtemp(prefix="repo_clone_");
+
+        ::py::
+        import git, tempfile, os
+        try:
+            temp_dir = tempfile.mkdtemp(prefix="repo_clone_")
+            print(f"🚀 Cloning repository from {repo_url}...")
+            git.Repo.clone_from(repo_url, temp_dir)
+            print(f"✅ Repository cloned successfully at {temp_dir}")
+            return temp_dir
+        except git.GitCommandError as e:
+            print(f"❌ Error cloning repository: {e}")
+            return ""
+        ::py::
     }
 
-    can execute_clone with agent_executor entry {
+    can execute_clone with supervisor entry {
         visitor.session.add_agent_execution("REPO_HANDLER");
         repo_url = visitor.utterance;
 
