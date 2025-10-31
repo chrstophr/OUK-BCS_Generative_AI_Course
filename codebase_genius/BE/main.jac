@@ -1,12 +1,15 @@
+import os;
+import git;
+import tempfile;
 import json;
 import time;
 import from typing { List }
-import from agent_core { Memory, Session }
+import from agent_core { Memory, Session, agent, get_all_sessions }
 import from byllm.llm { Model }
-import from nodes.repo_handler { RepoHandler }
+#import from nodes.repo_handler { RepoHandler }
 import sys;
 
-glob llm = Model(model_name="gpt-4o", verbose=False);
+glob llm = Model(model_name="gemini/gemini-2.0-flash", verbose=False);
 
 enum AgentTypes {
     REPO_HANDLER,
@@ -62,7 +65,47 @@ node Agent {
     has agent_type: AgentTypes;
 }
 
-walker agent_executor {
+node RepoHandler(Agent) {
+    has agent_type: AgentTypes = AgentTypes.REPO_HANDLER;
+
+    def validate_and_clone_repo(repo_url: str) -> str {
+       # temp_dir = tempfile.mkdtemp(prefix="repo_clone_");
+
+        ::py::
+        import git, tempfile, os
+        try:
+            temp_dir = tempfile.mkdtemp(prefix="repo_clone_")
+            print(f"🚀 Cloning repository from {repo_url}...")
+            git.Repo.clone_from(repo_url, temp_dir)
+            print(f"✅ Repository cloned successfully at {temp_dir}")
+            return temp_dir
+        except git.GitCommandError as e:
+            print(f"❌ Error cloning repository: {e}")
+            return ""
+        ::py::
+    }
+
+    can execute_clone with supervisor entry {
+        visitor.session.add_agent_execution("REPO_HANDLER");
+        repo_url = visitor.utterance;
+
+        clone_path = self.validate_and_clone_repo(repo_url);
+        if clone_path != "" {
+            visitor.session.current_state["repo_cloned"] = True;
+            visitor.session.current_state["repo_path"] = clone_path;
+            visitor.session.current_state["stage"] = WorkflowStage.MAPPING;
+            print(f"Cloned successfully: {clone_path}");
+        } else {
+            visitor.session.current_state["repo_cloned"] = False;
+            print("Cloning failed. Check the repository URL or network connection.");
+        }
+
+        visit [<--](`?CodeGenius);
+    }
+}
+
+
+walker supervisor {
     has session: Session | None = None;
     has utterance: str = "";     # GitHub URL or general command
     has session_id: str = "";
@@ -70,20 +113,25 @@ walker agent_executor {
 
     can route_workflow with CodeGenius entry {
         if self.session.get_execution_count() >= self.max_iterations {
+            # Safety: stop runaway loops
             print("Max iterations reached, stopping workflow.");
+            self.session.current_state["done"] = True;
             disengage;
             return;
         }
 
+        # Fetch current workflow stage and determine next agent
         current_stage = self.session.current_state.get("stage", WorkflowStage.INIT);
         next_agent = here.call_next_agent(self.session.current_state);
 
         print(f"Current stage: {current_stage}, Next agent: {next_agent}");
 
         if next_agent == AgentTypes.END or self.session.current_state.get("stage") == WorkflowStage.COMPLETED {
+            self.session.current_state["done"] = True;
             print("Workflow completed successfully!");
             disengage;
         } else {
+            # Route dynamically to the next agent node
             visit [-->](`?Agent)(?agent_type == next_agent);
         }
     }
@@ -110,9 +158,9 @@ walker agent_executor {
         visit [-->](`?CodeGenius) else {
             router_node = here ++> CodeGenius();
             router_node ++> RepoHandler();
-            router_node ++> RepoMapper();
-            router_node ++> CodeAnalyzer();
-            router_node ++> DocGenie();
+           # router_node ++> RepoMapper();
+           # router_node ++> CodeAnalyzer();
+           # router_node ++> DocGenie(); 
             visit router_node;
         }
     }
@@ -120,5 +168,5 @@ walker agent_executor {
 
 with entry {
     utterance = "https://github.com/chrstophr/Rock-Paper-Scissors";
-    agent_executor(utterance=utterance) spawn root;
+    supervisor(utterance=utterance) spawn root;
 }
