@@ -100,7 +100,7 @@ walker supervisor {
 
     # helper: reflectively find a class by name in loaded modules
     def get_agent_class(class_name: str) {
-        main_mod = sys.modules.get("__main__");
+        main_mod = sys.modules.get("main");
         if main_mod and hasattr(main_mod, class_name) {
             return getattr(main_mod, class_name, None);
         }
@@ -174,7 +174,7 @@ walker agent {
     }
 
     def get_node_class(class_name: str) {
-        main_mod = sys.modules.get("__main__");
+        main_mod = sys.modules.get("main");
         if main_mod and hasattr(main_mod, class_name) {
             return getattr(main_mod, class_name, None);
         }
@@ -229,6 +229,19 @@ walker get_all_sessions {
         } for session in session_list];
     }
 }
+
+"""enum AgentTypes {
+    REPO_HANDLER,
+    REPO_MAPPER,
+    CODE_ANALYZER,
+    DOC_GENIE,
+    END
+}
+
+node Agent {
+    has agent_type: AgentTypes;
+}"""
+
 
 with entry {
     load_dotenv();
