@@ -3,6 +3,7 @@ import time;
 import from typing { List }
 import from agent_core { Memory, Session }
 import from byllm.llm { Model }
+import from nodes.repo_handler { RepoHandler }
 import sys;
 
 glob llm = Model(model_name="gpt-4o", verbose=False);
