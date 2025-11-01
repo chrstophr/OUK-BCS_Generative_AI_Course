@@ -73,12 +73,23 @@ node RepoHandler(Agent) {
 
         ::py::
         import git, tempfile, os
+
+        repo_name = os.path.basename(repo_url.rstrip("/")).replace(".git", "")
+        base_dir = os.path.join(os.getcwd(), "outputs", "repos")
+        os.makedirs(base_dir, exist_ok=True)
+        target_dir = os.path.join(base_dir, repo_name)
+
+        #  Reuse existing repo if already cloned
+        if os.path.exists(target_dir) and os.path.isdir(os.path.join(target_dir, ".git")):
+            print(f"♻️ Reusing existing repository at {target_dir}")
+            return target_dir
+
         try:
-            temp_dir = tempfile.mkdtemp(prefix="repo_clone_")
+            #temp_dir = tempfile.mkdtemp(prefix="repo_clone_")
             print(f"🚀 Cloning repository from {repo_url}...")
-            git.Repo.clone_from(repo_url, temp_dir)
-            print(f"✅ Repository cloned successfully at {temp_dir}")
-            return temp_dir
+            git.Repo.clone_from(repo_url, target_dir)
+            print(f"✅ Repository cloned successfully at {target_dir}")
+            return target_dir
         except git.GitCommandError as e:
             print(f"❌ Error cloning repository: {e}")
             return ""
@@ -97,7 +108,7 @@ node RepoHandler(Agent) {
             print(f"Cloned successfully: {clone_path}");
         } else {
             visitor.session.current_state["repo_cloned"] = False;
-            print("Cloning failed. Check the repository URL or network connection.");
+            print("❌Cloning failed. Check the repository URL or network connection.");
         }
 
         visit [<--](`?CodeGenius);
