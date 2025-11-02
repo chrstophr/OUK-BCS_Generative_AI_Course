@@ -180,6 +180,21 @@ node RepoMapper(Agent) {
             return;
         }
 
+        # ✅ Reuse cached outputs if they already exist
+        cached_output = "outputs/repo_mapper_output.json";
+        if os.path.exists(cached_output) {
+            print(f"♻️ Reusing existing mapping output from {cached_output}");
+            with open(cached_output, "r") as f {
+                cached = json.load(f);
+        }
+        visitor.session.current_state["repo_structure"] = cached.get("repo_structure", "");
+        visitor.session.current_state["readme_summary"] = cached.get("readme_summary", "");
+        visitor.session.current_state["mapping_done"] = True;
+        visitor.session.current_state["stage"] = WorkflowStage.ANALYSIS;
+        visit [<--](`?CodeGenius);
+        return;
+        }
+
         # Step 1: Build file/folder tree
         repo_structure = self.generate_repo_structure(repo_path);
 
