@@ -116,6 +116,132 @@ node RepoHandler(Agent) {
 }
 
 
+node RepoMapper(Agent) {
+    has agent_type: AgentTypes = AgentTypes.REPO_MAPPER;
+
+    # ----------------------------------------
+    #  Build Clean File Tree
+    # ----------------------------------------
+    def generate_repo_structure(repo_path: str) -> str {
+        # Traverse the repository and return a clean ASCII tree structure.
+        def traverse(path: str, prefix: str = "") -> str {
+            output = "";
+            entries = os.listdir(path);
+            entries.sort();
+
+            for (index, entry) in enumerate(entries) {
+                full_path = os.path.join(path, entry);
+
+                # Skip irrelevant folders & hidden files
+                if entry.startswith(".") or entry in [
+                    "__pycache__",
+                    "venv",
+                    "node_modules",
+                    "dist",
+                    "build",
+                    ".idea",
+                    ".vscode"
+                ]{
+                    continue;
+                }
+
+                connector = "└── " if index == len(entries) - 1 else "├── ";
+                output += prefix + connector + entry + "\n";
+
+                # If folder, recursively go deeper
+                if os.path.isdir(full_path) {
+                    extension = "    " if index == len(entries) - 1 else "│   ";
+                    output += traverse(full_path, prefix + extension);
+                }
+            }
+            return output;
+        }
+
+        print(f"📂 Scanning repository at {repo_path}...");
+        return traverse(repo_path);
+    }
+
+    # ----------------------------------------
+    #  Summarize README or Entry Doc
+    # ----------------------------------------
+    def summarize_readme(readme_content: str) -> str by llm(method="Reason");
+
+
+    # ----------------------------------------
+    #  Execute Repo Mapping
+    # ----------------------------------------
+    can execute_mapping with supervisor entry {
+        visitor.session.add_agent_execution("REPO_MAPPER");
+
+        repo_path = visitor.session.current_state.get("repo_path", "");
+        if not repo_path {
+            print("❌ No repository path found — skipping mapping.");
+            visit [<--](`?CodeGenius);
+            return;
+        }
+
+        # Step 1: Build file/folder tree
+        repo_structure = self.generate_repo_structure(repo_path);
+
+        # Step 2: Find README or similar entry doc
+        readme_summary = "";
+        possible_names = ["README.md", "Readme.md", "readme.md", "index.md"];
+        readme_file = "";
+
+        for name in possible_names {
+            path = os.path.join(repo_path, name);
+            if os.path.exists(path) {
+                readme_file = path;
+                break;
+            }
+        }
+
+        if readme_file != "" {
+            print(f"📖 Found {readme_file} — summarizing content...");
+
+            f = open(readme_file, "r", encoding="utf-8");
+            readme_content = f.read();
+            f.close();
+
+            # Summarize the file using byllm
+            readme_summary = self.summarize_readme(readme_content);
+        } else {
+            print("⚠️ No README.md or entry document found in repository.");
+        }
+
+        # Step 3: Save mapping data to session
+        visitor.session.current_state["repo_structure"] = repo_structure;
+        visitor.session.current_state["readme_summary"] = readme_summary;
+        visitor.session.current_state["mapping_done"] = True;
+        visitor.session.current_state["stage"] = WorkflowStage.ANALYSIS;
+
+
+        # Step 4: Preview outputs before passing to Supervisor
+        print("========== 🧭 REPO MAPPER OUTPUT PREVIEW ==========");
+        print("📁 REPO STRUCTURE:");
+        print(repo_structure);
+        print("\n📝 README SUMMARY:");
+        print(readme_summary);
+        print("===================================================");
+
+        # save outputs to JSON file
+        output_path = os.path.join("outputs", "repo_mapper_output.json");
+        with open(output_path, "w", encoding="utf-8") as f{
+            json.dump({
+                "repo_path": repo_path,
+                "repo_structure": visitor.session.current_state.get("repo_structure", ""),
+                "readme_summary": visitor.session.current_state.get("readme_summary", "")
+            }, f, ensure_ascii=False, indent=2);
+        }
+        print(f"📁 RepoMapper output saved to {output_path}");
+
+
+        print("✅ Repo mapping complete. Passing results to Supervisor.");
+        visit [<--](`?CodeGenius);
+    }
+}
+
+
 walker supervisor {
     has session: Session | None = None;
     has utterance: str = "";     # GitHub URL or general command
@@ -169,7 +295,7 @@ walker supervisor {
         visit [-->](`?CodeGenius) else {
             router_node = here ++> CodeGenius();
             router_node ++> RepoHandler();
-           # router_node ++> RepoMapper();
+            router_node ++> RepoMapper();
            # router_node ++> CodeAnalyzer();
            # router_node ++> DocGenie(); 
             visit router_node;
