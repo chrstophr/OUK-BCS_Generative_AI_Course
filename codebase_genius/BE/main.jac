@@ -8,6 +8,10 @@ import from agent_core { Memory, Session, agent, get_all_sessions }
 import from byllm.llm { Model }
 #import from nodes.repo_handler { RepoHandler }
 import sys;
+import from graphviz { Digraph }
+import from tree_sitter { Language, Parser }
+include analyzer_utils;
+
 
 glob llm = Model(model_name="gemini/gemini-2.0-flash", verbose=False);
 
@@ -257,6 +261,158 @@ node RepoMapper(Agent) {
 }
 
 
+node CodeAnalyzer(Agent) {
+    has agent_type: AgentTypes = AgentTypes.CODE_ANALYZER;
+
+
+
+    # ----------------------------------------
+    # Convert Jac file to Python
+    # ----------------------------------------
+    def convert_jac_to_python(file_path: str) -> str {
+        temp_path = file_path.replace(".jac", "_converted.py");
+        cmd = f"jac jac2py {file_path} > {temp_path}";
+        os.system(cmd);
+        return temp_path;
+    }
+
+    # ----------------------------------------
+    # Initialize Tree-sitter parser (Python grammar)
+    # ----------------------------------------
+    def init_parser() -> Parser {
+        lang_path = "outputs/tree_sitter_languages.so";
+        if not os.path.exists(lang_path) {
+            os.system("tree-sitter build-wasm");
+        }
+        Language.build_library(lang_path, ["vendor/tree-sitter-python"]);
+        parser = Parser();
+        parser.set_language(Language(lang_path, "python"));
+        return parser;
+    }
+
+    # ----------------------------------------
+    # Extract function and class definitions
+    # ----------------------------------------
+    def parse_source(parser: Parser, file_path: str) -> list {
+        with open(file_path, "r") as f {
+            code = f.read();
+        }
+        tree = parser.parse(bytes(code, "utf8"));
+        root = tree.root_node;
+
+        results = [];
+        for node in root.children {
+            if node.type == "function_definition" or node.type == "class_definition" {
+                results.append({
+                    "type": node.type,
+                    "name": code[node.start_point[1]:node.end_point[1]],
+                    "start_line": node.start_point[0],
+                    "end_line": node.end_point[0]
+                });
+            }
+        }
+        return results;
+    }
+
+    # ----------------------------------------
+    # Summarize docstring content using byllm
+    # ----------------------------------------
+    def summarize_docstring(docstring: str) -> str by llm(method="Reason");
+
+    # ----------------------------------------
+    # Build visual call graph and save PNG
+    # ----------------------------------------
+    def build_graphviz(items: list, output_path: str) {
+        dot = Digraph(comment="Code Context Graph");
+        for item in items {
+            dot.node(item["name"], f"{item['name']}\\n({item['type']})");
+        }
+
+        for (i, src) in enumerate(items) {
+            if i + 1 < len(items) {
+                dot.edge(src["name"], items[i + 1]["name"]);
+            }
+        }
+
+        os.makedirs(os.path.dirname(output_path), exist_ok=True);
+        dot.render(output_path, format="png", cleanup=True);
+    }
+
+    # ----------------------------------------
+    # Run analyzer
+    # ----------------------------------------
+    can execute_analysis with supervisor entry {
+        visitor.session.add_agent_execution("CODE_ANALYZER");
+
+        repo_path = visitor.session.current_state.get("repo_path", "");
+        if not repo_path {
+            print("❌ No repo path found. Skipping analysis.");
+            visit [<--](`?CodeGenius);
+            return;
+        }
+        
+        #cache path
+        output_json = f"outputs/analyzer_output.json";
+        graph_path = f"outputs/graphs/code_graph";
+
+        # 🧩 Load existing analysis if already done
+        if os.path.exists(output_json) {
+            print(f"♻️ Reusing existing analysis output from {output_json}");
+            with open(output_json, "r") as f {
+                cached_data = json.load(f);
+            }
+            visitor.session.current_state["analysis_data"] = cached_data;
+            visitor.session.current_state["analysis_done"] = True;
+            visitor.session.current_state["stage"] = WorkflowStage.DOCS;
+            visit [<--](`?CodeGenius);
+            return;
+        }
+
+        print(f"🔍 Starting code analysis for {repo_path}...");
+        parser = self.init_parser();
+
+        all_items = [];
+        for entry in os.walk(repo_path) {
+            root = entry[0];
+            files = entry[2];
+            for f in files {
+                if f.endswith(".py") or f.endswith(".jac") {
+                    path = os.path.join(root, f);
+                    if f.endswith(".jac") {
+                        print(f"🌀 Converting {f} to Python...");
+                        path = self.convert_jac_to_python(path);
+                    }
+                    items = self.parse_source(parser, path);
+                    all_items = all_items + items;
+                }
+            }
+        }
+
+        # 🧠 Generate graph and doc summaries
+        self.build_graphviz(all_items, graph_path);
+
+        analysis_data = {
+            "repo_path": repo_path,
+            "functions_classes": all_items,
+            "graph_image": graph_path + ".png"
+        };
+
+        with open(output_json, "w") as f {
+            json.dump(analysis_data, f, indent=2);
+        }
+
+        print("✅ Code analysis complete. Graph saved at outputs/graphs/code_graph.png");
+
+        visitor.session.current_state["analysis_data"] = analysis_data;
+        visitor.session.current_state["analysis_done"] = True;
+        visitor.session.current_state["stage"] = WorkflowStage.DOCS;
+
+        visit [<--](`?CodeGenius);
+    }
+}
+
+
+
 walker supervisor {
     has session: Session | None = None;
     has utterance: str = "";     # GitHub URL or general command
@@ -311,7 +467,7 @@ walker supervisor {
             router_node = here ++> CodeGenius();
             router_node ++> RepoHandler();
             router_node ++> RepoMapper();
-           # router_node ++> CodeAnalyzer();
+            router_node ++> CodeAnalyzer();
            # router_node ++> DocGenie(); 
             visit router_node;
         }

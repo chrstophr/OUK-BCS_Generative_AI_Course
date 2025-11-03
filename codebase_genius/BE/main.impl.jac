@@ -26,7 +26,7 @@ Do not invent missing details.
 
 
 sem CodeAnalyzer.summarize_docstring = """
-Read the given Python or Jac docstring and produce a concise summary (1–3 lines).  
+Read the given Python or Jac docstring and produce a concise summary (1-3 lines).  
 Focus on purpose, input, and output — avoid restating the entire implementation.  
 Example output: "Defines the main training loop and evaluation routine for the model."
 """;
