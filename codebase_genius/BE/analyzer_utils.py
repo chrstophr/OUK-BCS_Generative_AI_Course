@@ -32,11 +32,53 @@ def convert_jac_to_python(file_path: str) -> str:
     os.system(f"jac jac2py {file_path} > {temp_path}")
     return temp_path
 
+# ---------------------------------------------------------------
+# Deep traversal helpers
+# ---------------------------------------------------------------
+def walk_tree(node, code: str, results: list):
+    """Recursively walk all AST nodes to extract functions, classes, and calls."""
+    node_type = node.type
+
+    if node_type in ("function_definition", "class_definition"):
+        snippet = code[node.start_byte:node.end_byte][:250].strip()
+        results.append({
+            "type": node_type,
+            "name": extract_name(node, code),
+            "snippet": snippet,
+            "start_line": node.start_point[0],
+            "end_line": node.end_point[0],
+        })
+
+    elif node_type == "call":
+        snippet = code[node.start_byte:node.end_byte][:120].strip()
+        results.append({
+            "type": "call",
+            "name": extract_name(node, code),
+            "snippet": snippet,
+            "start_line": node.start_point[0],
+            "end_line": node.end_point[0],
+        })
+
+    # Recurse into children
+    for child in node.children:
+        walk_tree(child, code, results)
+
+
+def extract_name(node, code: str):
+    """Extracts function or class name if present."""
+    try:
+        for child in node.children:
+            if child.type == "identifier":
+                return code[child.start_byte:child.end_byte]
+        return node.type
+    except Exception:
+        return node.type
+
 
 def parse_source(parser, file_path: str):
 
     #Parse a Python (or converted Jac) file using Tree-sitter.
-    #Extracts function, class, and basic call nodes
+    #Extracts function, class, and calls.
 
     if not parser:
         print("⚠️ Parser not available. Skipping analysis.")
@@ -49,18 +91,7 @@ def parse_source(parser, file_path: str):
     root = tree.root_node
 
     results = []
-    for node in root.children:
-        # Capture function and class definitions, plus expression statements (simple MVP coverage)
-        if node.type in ("function_definition", "class_definition", "expression_statement", "call"):
-            snippet = code[node.start_byte:node.end_byte][:200].strip()  # capture short snippet
-            results.append({
-                "type": node.type,
-                "snippet": snippet,
-                "start_line": node.start_point[0],
-                "end_line": node.end_point[0],
-                "file": file_path
-            })
-
+    walk_tree(root, code, results)
     return results
 
 # ---------------------------------------------------------------
@@ -68,22 +99,21 @@ def parse_source(parser, file_path: str):
 # ---------------------------------------------------------------
 def extract_relationships(items: list):
     """
-    Derive simple function-call relationships based on text pattern matching.
-    Output: {"details": [{"from": idxA, "to": idxB, "label": "calls"}]}
+    Builds call relationships between defined functions/classes and call sites.
     """
     relationships = {"details": []}
-    func_names = [item["snippet"].split("(")[0].replace("def ", "").strip() 
-                  for item in items if item["type"] == "function_definition"]
+    defined_funcs = {i: x["name"] for i, x in enumerate(items) if x["type"] == "function_definition"}
 
     for i, item in enumerate(items):
-        snippet = item["snippet"]
-        for j, func in enumerate(func_names):
-            if func and func in snippet and i != j:
-                relationships["details"].append({
-                    "from": i,
-                    "to": j,
-                    "label": f"calls {func}()"
-                })
+        if item["type"] == "call":
+            call_name = item["name"]
+            for j, func_name in defined_funcs.items():
+                if call_name == func_name:
+                    relationships["details"].append({
+                        "from": i,
+                        "to": j,
+                        "label": f"calls {call_name}()"
+                    })
     return relationships
 
 
@@ -93,15 +123,12 @@ def extract_relationships(items: list):
 
 def build_graphviz(items: list, relationships: dict, output_path: str):
 
-    """
-    Build a simple visual Code Context Graph (CCG) as a PNG.
-    Each node = function/class/expression found in the source files.
-    """
+    """ Build visual Graphviz PNG showing real relationships."""
     dot = Digraph(comment="Code Context Graph")
     
     # Add nodes
     for idx, item in enumerate(items):
-        label = f"{item['type']}\n{item['snippet'][:40]}"
+        label = f"{item['type']}\\n{item['name']}"
         dot.node(f"N{idx}", label)
 
     # Add relationship edges if found
@@ -116,16 +143,7 @@ def build_graphviz(items: list, relationships: dict, output_path: str):
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     dot.render(output_path, format="png", cleanup=True)
-"""  # Add nodes for all parsed elements
-    for item in items:
-        dot.node(item["snippet"][:30], f"{item['type']}")
 
-    # Add linear edges (MVP; relationships can be added in later phases)
-    for i in range(len(items) - 1):
-        dot.edge(items[i]["snippet"][:30], items[i + 1]["snippet"][:30])
-
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    dot.render(output_path, format="png", cleanup=True) """
 
 # ================================================================
 # Main Analyzer Entry Point (called from Jac)
@@ -133,35 +151,29 @@ def build_graphviz(items: list, relationships: dict, output_path: str):
 
 def run_analysis(repo_path: str, cache_path="outputs/analyzer_output.json"):
     """
-    Main callable from Jac.
-    1. Initializes Tree-sitter parser.
-    2. Parses all .py and .jac files.
-    3. Generates a simple call graph.
-    4. Caches and returns structured output.
+    Full repo analysis: traverse, parse, extract calls, build graph, save.
     """
     if os.path.exists(cache_path):
         print(f"♻️ Reusing existing analysis output from {cache_path}")
         with open(cache_path, "r") as f:
             return json.load(f)
 
-    print(f"🔍 Starting code analysis for {repo_path}...")
+    print(f"🔍 Deep Tree-sitter analysis for {repo_path}...")
     parser = init_parser()
     all_items = []
 
     # Traverse all files in repository
     for root, _, files in os.walk(repo_path):
         for f in files:
-            if f.endswith(".py") or f.endswith(".jac"):
+            if f.endswith((".py", ".jac")):
                 path = os.path.join(root, f)
                 if f.endswith(".jac"):
-                    print(f"🌀 Converting {f} to Python...")
                     path = convert_jac_to_python(path)
-
                 items = parse_source(parser, path)
-                print(f"📄 Parsed {f}: {len(items)} items found.")
+                print(f"📄 Parsed {f}: {len(items)} nodes.")
                 all_items += items
 
-    # Build relationships and visual graph
+    # Extract relationships and visual graph
     relationships = extract_relationships(all_items)
     graph_path = "outputs/graphs/code_graph"
     build_graphviz(all_items, relationships, graph_path)
