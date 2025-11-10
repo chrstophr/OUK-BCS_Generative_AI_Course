@@ -142,10 +142,10 @@ node RepoHandler(Agent) {
         visitor.session.add_agent_execution("REPO_HANDLER");
         repo_input = visitor.utterance;
 
-        print(f"\n{'='*60}");
+        print(f"{'='*60}");
         print(f"🔍 REPO HANDLER: Validating input");
         print(f"{'='*60}");
-        print(f"Input: {repo_input}\n");
+        print(f"Input: {repo_input}");
 
         # Validate and get repository path
         repo_path = self.validate_and_clone_repo(repo_input);
@@ -155,11 +155,11 @@ node RepoHandler(Agent) {
             visitor.session.current_state["repo_path"] = repo_path;
             visitor.session.current_state["stage"] = WorkflowStage.MAPPING;
             
-            print(f"\n✅ Repository ready for analysis!");
-            print(f"📂 Path: {repo_path}\n");
+            print(f"✅ Repository ready for analysis!");
+            print(f"📂 Path: {repo_path}");
         } else {
             visitor.session.current_state["repo_cloned"] = False;
-            print(f"\n❌ Repository validation failed. Stopping workflow.\n");
+            print(f"❌ Repository validation failed. Stopping workflow.");
         }
 
         visit [<--](`?CodeGenius);
@@ -276,7 +276,7 @@ node RepoMapper(Agent) {
         print("========== 🧭 REPO MAPPER OUTPUT PREVIEW ==========");
         print("📁 REPO STRUCTURE:");
         print(repo_structure);
-        print("\n📝 README SUMMARY:");
+        print("📝 README SUMMARY:");
         print(str(readme_summary));
         print("===================================================");
 
@@ -420,7 +420,7 @@ node CodeAnalyzer(Agent) {
         stats = self.get_stats(analysis_data);
         graphs = analysis_data.get("graphs", {});
         
-        print("\n" + "="*60);
+        print("="*60);
         print("📊 CODE ANALYSIS SUMMARY");
         print("="*60);
         print(f"Files analyzed:      {stats.get('total_files', 0)}");
@@ -430,7 +430,7 @@ node CodeAnalyzer(Agent) {
         print(f"📈 Visualizations:");
         print(f"  Dependency tree:   {graphs.get('dependency_tree', 'N/A')}");
         print(f"  Class hierarchy:   {graphs.get('class_hierarchy', 'N/A')}");
-        print("="*60 + "\n");
+        print("="*60);
     }
 
     # ------------------------------------------------
@@ -472,7 +472,7 @@ node CodeAnalyzer(Agent) {
 
         # Run fresh analysis
         print(f"🔍 Starting code analysis for {repo_path}...");
-        print("   This may take a moment for large repositories...\n");
+        print("   This may take a moment for large repositories...");
         
         analysis_data = self.run_code_analysis(repo_path);
 
@@ -503,6 +503,8 @@ node CodeAnalyzer(Agent) {
         visit [<--](`?CodeGenius);
     }
 }
+
+
 
 
 
@@ -628,7 +630,7 @@ node DocGenie(Agent) {
             return;
         }
 
-        print(f"\n📚 Generating documentation for {repo_name}...\n");
+        print(f"📚 Generating documentation for {repo_name}...");
 
         # Generate markdown
         markdown_content = self.generate_markdown(repo_name, analysis_data, readme_summary);
@@ -657,18 +659,21 @@ node DocGenie(Agent) {
         
         print(f"✅ Documentation generated successfully!");
         print(f"📄 Saved to: {output_path}");
-        print(f"📊 Size: {len(markdown_content)} characters\n");
+        print(f"📊 Size: {len(markdown_content)} characters");
         
         visitor.session.current_state["final_doc"] = output_path;
+        visitor.session.current_state["docs_done"] = True;
         visitor.session.current_state["stage"] = WorkflowStage.COMPLETED;
 
         visit [<--](`?CodeGenius);
     }
 }
 
+
+
 walker supervisor {
     has session: Session | None = None;
-    has utterance: str = "";     # GitHub URL or general command
+    has utterance: str = "";     # GitHub URL, Local path or general command
     has session_id: str = "";
     has max_iterations: int = 10;
 
