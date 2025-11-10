@@ -1,1 +1,6 @@
 Agentic-AI/
+*_converted.py
+BE/outputs/repo_mapper_output.json
+BE/outputs/repo_mapper_output.json
+BE/outputs/graphs/class_hierarchy.png
+BE/outputs/graphs/dependency_tree.png
