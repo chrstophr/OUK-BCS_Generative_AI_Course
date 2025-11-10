@@ -1,6 +1,30 @@
-Agentic-AI/
+# Byte-compiled / optimized / DLL filesS
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs 
+*.log
+
+# Virtual environments
+venv*/
+.env/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Editor folders
+.vscode/
+.idea/
+
+# Tests
+/tests/__pycache__/
+
+# jac2py Converted files
 *_converted.py
-BE/outputs/repo_mapper_output.json
-BE/outputs/repo_mapper_output.json
-BE/outputs/graphs/class_hierarchy.png
-BE/outputs/graphs/dependency_tree.png
+
+# cached .json and image files
+*.json
+*png
