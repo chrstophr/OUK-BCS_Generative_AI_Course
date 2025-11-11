@@ -32,6 +32,7 @@ codebase_genius/
 │   │   ├── repos/               # Cloned repositories
 │   │   ├── graphs/              # Dependency visualizations (PNG)
 │   │   └── <repo_name>/         # Final documentation per repo
+│   ├── tests                    # Test files
 │   ├── requirements.txt         # Python dependencies
 │   └── README.md                # This file
 │
@@ -258,7 +259,7 @@ Run queries on analyzed data:
 
 ```bash
 cd BE
-jac run test_queries.jac
+jac tests/run test_queries.jac
 ```
 
 This tests the CodeAnalyzer query APIs:
@@ -277,12 +278,6 @@ Contributions are welcome! Areas for improvement:
 - Better error handling for edge cases
 - Performance optimization for large repositories
 - Additional LLM providers
-
----
-
-## 📝 License
-
-MIT License - See LICENSE file for details
 
 ---
 
