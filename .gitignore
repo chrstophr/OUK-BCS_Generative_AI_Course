@@ -5,7 +5,4 @@ ENV/
 env/
 .venv/.venv/
 Agentic-AI/
-codebase_genius/BE/nodes/code_analyzer.jac
-codebase_genius/BE/nodes/doc_genie.jac
-codebase_genius/BE/nodes/repo_handler.jac
-
+draft_nodes/
