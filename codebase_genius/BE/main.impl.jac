@@ -15,6 +15,8 @@ Always check current_state['stage'] to determine the next agent.
 """;
 
 
+
+
 sem RepoMapper.summarize_readme = """
 Read the README.md (or similar entry file) and generate a concise summary.
 
@@ -24,12 +26,11 @@ Read the README.md (or similar entry file) and generate a concise summary.
 - Gradually shorten later sections.
 - Focus on purpose, main features, setup, and structure.
 - Output a markdown-style summary: 
-  "## Section Title: short summary"
+  "## Section Title:"
 
 Keep the summary concise and accurate to the provided text.
 Do not invent missing details.
 """;
-
 
 
 
@@ -40,23 +41,63 @@ Focus on purpose, input, and output — avoid restating the entire implementatio
 Example output: "Defines the main training loop and evaluation routine for the model."
 """;
 
-# SEM instruction for overview generation
+
+
+
 sem DocGenie.write_overview = """
 Given a README summary, write a clear 2-3 paragraph project overview.
 
 README Summary:
 {readme_summary}
 
+Statistics:
+- Files: {stats.get('total_files')}
+- Classes: {stats.get('total_classes')}
+- Functions: {stats.get('total_functions')}
+
 Focus on:
 - What problem does this project solve?
 - Main features and capabilities
 - Target users or use cases
 
-Write in a professional but approachable tone.
-Do not use phrases like "This repository" or "This codebase" - just describe what it does.
+Write in third person. Be concise but informative.
+Do not use phrases like "This repository" - just describe what the software does.
 """;
 
-# SEM instruction for architecture analysis
+sem DocGenie.write_installation = """
+Generate installation instructions based on the README summary.
+
+README Summary:
+{readme_summary}
+
+Provide clear steps for:
+1. Prerequisites (Python version, system requirements)
+2. Cloning/downloading the repository
+3. Setting up virtual environment
+4. Installing dependencies
+5. Any environment variables or configuration needed
+
+Format as numbered steps or bullet points. Be specific and actionable.
+""";
+
+sem DocGenie.write_usage = """
+Generate usage instructions for this codebase.
+
+README Summary:
+{readme_summary}
+
+Entry Point Files:
+{entry_points}
+
+Explain:
+- How to run the main application
+- Common use cases or examples
+- Command-line arguments (if applicable)
+- Expected output
+
+Provide code examples where relevant. Keep it practical and beginner-friendly.
+""";
+
 sem DocGenie.write_architecture_section = """
 Analyze the codebase structure and explain the architecture.
 
@@ -70,7 +111,8 @@ Explain:
 - Overall organization (how files/modules are structured)
 - Key components and their roles
 - Design patterns observed (if any)
-- How the pieces fit together
+- How the modules interact
 
-Write 2-4 paragraphs. Be specific but concise.
+Be specific about class relationships and file organization.
+Write for developers who need to understand the codebase quickly.
 """;
