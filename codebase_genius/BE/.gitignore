@@ -22,9 +22,16 @@ Thumbs.db
 # Tests
 /tests/__pycache__/
 
+
 # jac2py Converted files
 *_converted.py
 
 # cached .json and image files
 *.json
 *png
+
+# Nodes file
+nodes/
+nodes/code_analyzer.jac
+nodes/doc_genie.jac
+nodes/repo_handler.jac
