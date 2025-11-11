@@ -1,6 +1,22 @@
 import from dotenv { load_dotenv }
 import sys;
+import os;
+import json;
 import from utils { get_current_datetime }
+
+enum AgentTypes {
+    NONE,
+    REPO_HANDLER,
+    REPO_MAPPER,
+    CODE_ANALYZER,
+    DOC_GENIE,
+    END
+}
+
+node Agent {
+    has agent_type: AgentTypes;
+}
+
 
 # -----------------------------
 # Agent Core: Memory & Session
@@ -230,17 +246,6 @@ walker get_all_sessions {
     }
 }
 
-"""enum AgentTypes {
-    REPO_HANDLER,
-    REPO_MAPPER,
-    CODE_ANALYZER,
-    DOC_GENIE,
-    END
-}
-
-node Agent {
-    has agent_type: AgentTypes;
-}"""
 
 
 with entry {
