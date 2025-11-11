@@ -1,0 +1,24 @@
+# Codebase Genius Backend Requirements
+# Python 3.10+
+
+# Core Framework
+jaclang
+
+# LLM Integration
+byllm
+
+# Code Parsing
+tree-sitter
+tree-sitter-python
+
+# Graph Visualization
+graphviz
+
+# Repository Management
+GitPython
+
+# Environment Management
+python-dotenv
+
+# Utilities
+typing-extensions
